@@ -86,6 +86,41 @@ function lint(objectName,object,key,options) {
                 continue;
             }
             let matched = false;
+            if (rule.conditions) {
+                let failed = false;
+                for (let condition of rule.conditions) {
+                    const property = (condition.property === '$key') ? key : object[condition.property];
+
+                    if (condition.value && property != condition.value) {
+                        failed = true;
+                        break;
+                    }
+
+                    if (condition.pattern) {
+                        let re = new RegExp(condition.pattern);
+                        if (!re.test(property)) {
+                            failed = true;
+                            break;
+                        }
+                    }
+                }
+                if (failed)
+                    continue;
+            }
+            if (rule.condition) {
+                const property = (rule.condition.property === '$key') ? key : object[rule.condition.property];
+
+                if (rule.condition.value && property != rule.condition.value) {
+                    continue;
+                }
+
+                if (rule.condition.pattern) {
+                    let re = new RegExp(rule.condition.pattern);
+                    if (!re.test(property)) {
+                        continue;
+                    }
+                }
+            }
             if (rule.truthy) {
                 matched = true;
                 for (let property of rule.truthy) {
@@ -137,8 +172,17 @@ function lint(objectName,object,key,options) {
             if (rule.or) {
                 matched = true;
                 let found = false;
-                for (let property of rule.or) {
-                    if (typeof object[property] !== 'undefined') found = true;
+
+                if (rule.or.property) {
+                    const property = (rule.or.property === '$key') ? key : object[rule.or.property];
+                    for (let value of rule.or.value) {
+                        if (value == property) found = true;
+                    }
+
+                } else {
+                    for (let property of rule.or) {
+                        if (typeof object[property] !== 'undefined') found = true;
+                    }
                 }
                 ensure(rule, () => {
                     should(found).be.exactly(true,rule.description);
@@ -178,6 +222,42 @@ function lint(objectName,object,key,options) {
                         ensure(rule, () => {
                             should(re.test(component)).be.exactly(true,rule.description);
                         });
+                    }
+                }
+            }
+            if (rule.notPattern) {
+                matched = true;
+                let components = [];
+                const property = (rule.notPattern.property === '$key') ? key : object[rule.notPattern.property];
+                if (rule.notPattern.split) {
+                    components = property.split(rule.notPattern.split);
+                }
+                else {
+                    components.push(property);
+                }
+
+                if (rule.notPattern.values) {
+                    for (let value of rule.notPattern.values) {
+                        let re = new RegExp(value);
+                        for (let component of components) {
+                            if (rule.notPattern.omit) component = component.split(rule.notPattern.omit).join('');
+                            if (component) {
+                                ensure(rule, () => {
+                                    should(re.test(component)).be.exactly(false, rule.description + " (" + value + ")");
+                                });
+                            }
+                        }
+                    }
+
+                } else {
+                    let re = new RegExp(rule.notPattern.value);
+                    for (let component of components) {
+                        if (rule.notPattern.omit) component = component.split(rule.notPattern.omit).join('');
+                        if (component) {
+                            ensure(rule, () => {
+                                should(re.test(component)).be.exactly(false, rule.description);
+                            });
+                        }
                     }
                 }
             }
