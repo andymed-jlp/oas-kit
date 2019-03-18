@@ -510,7 +510,7 @@ function checkLink(link, openapi, options) {
     if (options.lint) options.linter('link',link,'link',options);
 }
 
-function checkHeader(header, contextServers, openapi, options) {
+function checkHeader(header, key, contextServers, openapi, options) {
     if (typeof header.$ref !== 'undefined') {
         let ref = header.$ref;
         should(header.$ref).be.type('string');
@@ -550,7 +550,7 @@ function checkHeader(header, contextServers, openapi, options) {
     if (!header.schema && !header.content) {
         should(header).have.property('schema', 'Header should have schema or content');
     }
-    if (options.lint) options.linter('header',header,'header',options);
+    if (options.lint) options.linter('header',header,key,options);
 }
 
 function checkResponse(response, key, contextServers, openapi, options) {
@@ -571,7 +571,7 @@ function checkResponse(response, key, contextServers, openapi, options) {
         for (let h in response.headers) {
             contextAppend(options, h);
             should(validateHeaderName(h)).be.equal(true, 'Header doesn\'t match RFC7230 pattern');
-            checkHeader(response.headers[h], contextServers, openapi, options);
+            checkHeader(response.headers[h], h, contextServers, openapi, options);
             options.context.pop();
         }
         options.context.pop();
@@ -1249,7 +1249,7 @@ function validateSync(openapi, options, callback) {
         for (let h in openapi.components.headers) {
             options.context.push('#/components/headers/' + h);
             should(validateComponentName(h)).be.equal(true, 'component name invalid');
-            checkHeader(openapi.components.headers[h], contextServers, openapi, options);
+            checkHeader(openapi.components.headers[h], h, contextServers, openapi, options);
             options.context.pop();
         }
         options.context.pop();
