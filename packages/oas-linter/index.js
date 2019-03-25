@@ -86,9 +86,19 @@ function lint(objectName,object,key,options) {
                 continue;
             }
             let matched = false;
-            if (rule.conditions) {
+            if (rule.conditions || rule.condition) {
                 let failed = false;
-                for (let condition of rule.conditions) {
+
+                let conditions = [];
+                if (rule.conditions) {
+                    conditions = conditions.concat(rule.conditions);
+                }
+
+                if (rule.condition) {
+                    conditions.push(rule.condition);
+                }
+
+                for (let condition of conditions) {
                     const property = (condition.property === '$key') ? key : object[condition.property];
 
                     if (condition.value && property != condition.value) {
@@ -106,20 +116,6 @@ function lint(objectName,object,key,options) {
                 }
                 if (failed)
                     continue;
-            }
-            if (rule.condition) {
-                const property = (rule.condition.property === '$key') ? key : object[rule.condition.property];
-
-                if (rule.condition.value && property != rule.condition.value) {
-                    continue;
-                }
-
-                if (rule.condition.pattern) {
-                    let re = new RegExp(rule.condition.pattern);
-                    if (!re.test(property)) {
-                        continue;
-                    }
-                }
             }
             if (rule.truthy) {
                 matched = true;
