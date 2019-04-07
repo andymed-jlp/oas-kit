@@ -99,7 +99,9 @@ function lint(objectName,object,key,options) {
                 }
 
                 for (let condition of conditions) {
-                    const property = (condition.property === '$key') ? key : object[condition.property];
+                    const property =
+                        (condition.property === '$path') ? options.context[options.context.length-1] :
+                            (condition.property === '$key') ? key : object[condition.property];
 
                     if (condition.value && property != condition.value) {
                         failed = true;
@@ -109,6 +111,14 @@ function lint(objectName,object,key,options) {
                     if (condition.pattern) {
                         let re = new RegExp(condition.pattern);
                         if (!re.test(property)) {
+                            failed = true;
+                            break;
+                        }
+                    }
+
+                    if (condition.notPattern) {
+                        let re = new RegExp(condition.notPattern);
+                        if (re.test(property)) {
                             failed = true;
                             break;
                         }
@@ -170,7 +180,9 @@ function lint(objectName,object,key,options) {
                 let found = false;
 
                 if (rule.or.property) {
-                    const property = (rule.or.property === '$key') ? key : object[rule.or.property];
+                    const property =
+                        (rule.or.property === '$path') ? options.context[options.context.length-1] :
+                            (rule.or.property === '$key') ? key : object[rule.or.property];
                     for (let value of rule.or.value) {
                         if (value == property) found = true;
                     }
@@ -204,27 +216,35 @@ function lint(objectName,object,key,options) {
             if (rule.pattern) {
                 matched = true;
                 let components = [];
-                const property = (rule.pattern.property === '$key') ? key : object[rule.pattern.property];
+                const property =
+                    (rule.pattern.property === '$path') ? options.context[options.context.length-1] :
+                        (rule.pattern.property === '$key') ? key : object[rule.pattern.property];
                 if (rule.pattern.split) {
                     components = property.split(rule.pattern.split);
                 }
                 else {
                     components.push(property);
                 }
+
                 let re = new RegExp(rule.pattern.value);
                 for (let component of components) {
-                    if (rule.pattern.omit) component = component.split(rule.pattern.omit).join('');
                     if (component) {
-                        ensure(rule, () => {
-                            should(re.test(component)).be.exactly(true,rule.description);
-                        });
+                        if (rule.pattern.omit && component.split)
+                            component = component.split(rule.pattern.omit).join('');
+                        if (component) {
+                            ensure(rule, () => {
+                                should(re.test(component)).be.exactly(true, rule.description);
+                            });
+                        }
                     }
                 }
             }
             if (rule.notPattern) {
                 matched = true;
                 let components = [];
-                const property = (rule.notPattern.property === '$key') ? key : object[rule.notPattern.property];
+                const property =
+                    (rule.notPattern.property === '$path') ? options.context[options.context.length-1] :
+                        (rule.notPattern.property === '$key') ? key : object[rule.notPattern.property];
                 if (rule.notPattern.split) {
                     components = property.split(rule.notPattern.split);
                 }
@@ -236,11 +256,13 @@ function lint(objectName,object,key,options) {
                     for (let value of rule.notPattern.values) {
                         let re = new RegExp(value);
                         for (let component of components) {
-                            if (rule.notPattern.omit) component = component.split(rule.notPattern.omit).join('');
                             if (component) {
-                                ensure(rule, () => {
-                                    should(re.test(component)).be.exactly(false, rule.description + " (" + value + ")");
-                                });
+                                if (rule.notPattern.omit) component = component.split(rule.notPattern.omit).join('');
+                                if (component) {
+                                    ensure(rule, () => {
+                                        should(re.test(component)).be.exactly(false, rule.description + " (" + value + ")");
+                                    });
+                                }
                             }
                         }
                     }
@@ -248,11 +270,13 @@ function lint(objectName,object,key,options) {
                 } else {
                     let re = new RegExp(rule.notPattern.value);
                     for (let component of components) {
-                        if (rule.notPattern.omit) component = component.split(rule.notPattern.omit).join('');
                         if (component) {
-                            ensure(rule, () => {
-                                should(re.test(component)).be.exactly(false, rule.description);
-                            });
+                            if (rule.notPattern.omit) component = component.split(rule.notPattern.omit).join('');
+                            if (component) {
+                                ensure(rule, () => {
+                                    should(re.test(component)).be.exactly(false, rule.description);
+                                });
+                            }
                         }
                     }
                 }
@@ -277,7 +301,9 @@ function lint(objectName,object,key,options) {
             }
             if (rule.notEndWith) {
                 matched = true;
-                let property = (rule.notEndWith.property === '$key') ? key : object[rule.notEndWith.property];
+                let property =
+                    (rule.notEndWith.property === '$path') ? options.context[options.context.length-1] :
+                        (rule.notEndWith.property === '$key') ? key : object[rule.notEndWith.property];
                 if (typeof property === 'string') {
                     if (rule.notEndWith.omit) {
                         property = property.replace(rule.notEndWith.omit,'');
@@ -289,16 +315,22 @@ function lint(objectName,object,key,options) {
             }
             if (rule.if) {
                 matched = true;
-                let property = (rule.if.property === '$key') ? key : object[rule.if.property];
+                let property =
+                    (rule.if.property === '$path') ? options.context[options.context.length-1] :
+                        (rule.if.property === '$key') ? key : object[rule.if.property];
                 if (property) {
-                  let thenProp = (rule.if.then.property === '$key') ? key : object[rule.if.then.property];
-                  ensure(rule, () => {
-                    should(thenProp).equal(rule.if.then.value,rule.name+' if.then test failed:'+thenProp+' != '+rule.if.then.value);
-                  });
+                    let thenProp =
+                        (rule.if.property === '$path') ? options.context[options.context.length-1] :
+                            (rule.if.then.property === '$key') ? key : object[rule.if.then.property];
+                    ensure(rule, () => {
+                        should(thenProp).equal(rule.if.then.value,rule.name+' if.then test failed:'+thenProp+' != '+rule.if.then.value);
+                    });
                 }
                 else {
                     if (rule.else) {
-                        let elseProp = (rule.if.else.property === '$key') ? key : object[rule.if.else.property];
+                        let elseProp =
+                            (rule.if.property === '$path') ? options.context[options.context.length-1] :
+                                (rule.if.else.property === '$key') ? key : object[rule.if.else.property];
                         ensure(rule, () => {
                             should(elseProp).equal(rule.if.else.value,rule.name+' if.else test failed:'+elseProp+' != '+rule.if.else.value);
                         });
